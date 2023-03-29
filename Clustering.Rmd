@@ -31,6 +31,7 @@ library(class)
 library(cluster)
 library(factoextra)
 library(plotly)
+library(rmarkdown)
 set.seed(679)
 ```
 
@@ -67,10 +68,11 @@ We will save the result to perform test.
 
 ```{r,cache = TRUE}
 Data_HC_Result <- BoT %>% mutate(Cluster = HC_cut)
-(Data_HC_Result_Summarized <- BoT %>%
+Data_HC_Result_Summarized <- BoT %>%
                                 mutate(Cluster = HC_cut) %>%
                                 group_by(Cluster) %>%
-                                summarise_all("mean"))
+                                summarise_all("mean")
+paged_table(Data_HC_Result_Summarized)
 ```
 
 ```{r,eval = FALSE}
@@ -100,11 +102,21 @@ plt
 Using Kruskal-Wallis test as the non-parametric alternative to one-way ANOVA test, since I believe my data is not normally distributed. Also, the original data is of ordinal type.
 
 ```{r}
+for(i in 1:8){ 
+  print(kruskal.test(Data_HC_Result[[colnames(Data_HC_Result)[i]]] ~ Data_HC_Result$Cluster, data = Data_HC_Result))
+}
+```
+
+Post-hoc test chosen: Pairwise Wilcoxon test
+
+```{r}
 # pairwise.wilcox.test(Data_HC_Result[["Control"]], Data_HC_Result$Cluster, p.adjust.method = "BH")
 for(i in 1:8){ 
   print(pairwise.wilcox.test(Data_HC_Result[[colnames(Data_HC_Result)[i]]], Data_HC_Result$Cluster, p.adjust.method = "BH"))
 }
 ```
+
+The "BH" (aka "fdr") and "BY" method of Benjamini, Hochberg, and Yekutieli control the false discovery rate, the expected proportion of false discoveries amongst the rejected hypotheses. The false discovery rate is a less stringent condition than the family-wise error rate, so these methods are more powerful than the others.
 
 ## Kmeans {.tabset}
 
@@ -138,10 +150,11 @@ We will save the result to perform test.
 ```{r}
 Data_Kmeans_Result <- BoT %>% mutate(Cluster = k3$cluster) 
 
-(Data_Kmeans_Result_Summarized <- BoT %>%
+Data_Kmeans_Result_Summarized <- BoT %>%
                     mutate(Cluster = k3$cluster) %>%
                     group_by(Cluster) %>%
-                    summarise_all("mean"))
+                    summarise_all("mean")
+paged_table(Data_Kmeans_Result_Summarized)
 ```
 
 ```{r,eval = FALSE}
@@ -171,8 +184,18 @@ plt2
 Using Kruskal-Wallis test as the non-parametric alternative to one-way ANOVA test, since I believe my data is not normally distributed. Also, the original data is of ordinal type.
 
 ```{r}
+for(i in 1:8){ 
+  print(kruskal.test(Data_HC_Result[[colnames(Data_HC_Result)[i]]] ~ Data_HC_Result$Cluster, data = Data_HC_Result))
+}
+```
+
+Post-hoc test chosen: Pairwise Wilcoxon test
+
+```{r}
 # pairwise.wilcox.test(Data_HC_Result[["Control"]], Data_HC_Result$Cluster, p.adjust.method = "BH")
 for(i in 1:8){ 
   print(pairwise.wilcox.test(Data_Kmeans_Result[[colnames(Data_Kmeans_Result)[i]]], Data_Kmeans_Result$Cluster, p.adjust.method = "BH"))
 }
 ```
+
+The "BH" (aka "fdr") and "BY" method of Benjamini, Hochberg, and Yekutieli control the false discovery rate, the expected proportion of false discoveries amongst the rejected hypotheses. The false discovery rate is a less stringent condition than the family-wise error rate, so these methods are more powerful than the others.
