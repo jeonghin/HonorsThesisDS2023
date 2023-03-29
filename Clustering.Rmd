@@ -1,0 +1,178 @@
+---
+title: "Clustering"
+author: "Raphael Jeong Hin Chin"
+date: "2023-03-28"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    smooth_scroll: false
+    code_folding: hide
+---
+
+<style>
+
+div.main-container {
+    max-width: 100%;
+    margin-left:10px;
+    margin-right:10px;
+}
+
+</style>
+
+# Libraries
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(class)
+library(cluster)
+library(factoextra)
+library(plotly)
+set.seed(679)
+```
+
+# Data
+
+```{r}
+Data<- read.csv(file = 'Final/BoT_Cluster_ENGR_Updated.csv',row.names=1)
+BoT <- Data[,-c(1,2)]
+```
+
+
+# Clustering {.tabset}
+
+## Hierarchical Clustering (HC) {.tabset}
+
+```{r,cache = TRUE}
+dcan <- dist(BoT, method = "euclidean") 
+hcan <- hclust(dcan,method="complete")
+plot(hcan, axes = FALSE, ann = FALSE, main = NA, labels = FALSE, hang = 0.01)
+```
+
+### Table
+
+We can see from the figure that the best choice for total number of clusters is 3. Comparing it with the original cohort id.
+
+```{r,cache = TRUE}
+HC_cut <- cutree(hcan, 3)
+table(Data$cohort_id, HC_cut)
+```
+
+### Result
+
+We will save the result to perform test.
+
+```{r,cache = TRUE}
+Data_HC_Result <- BoT %>% mutate(Cluster = HC_cut)
+(Data_HC_Result_Summarized <- BoT %>%
+                                mutate(Cluster = HC_cut) %>%
+                                group_by(Cluster) %>%
+                                summarise_all("mean"))
+```
+
+```{r,eval = FALSE}
+write.csv(Data_HC_Result, "Final/Data_HC_Result.csv", row.names=FALSE)
+write.csv(Data_HC_Result_Summarized, "Final/Data_HC_Result_Summarized.csv", row.names=FALSE)
+```
+
+### Plot
+
+Look at the histogram for each cluster
+
+```{r warning=FALSE,error=FALSE}
+plt <- htmltools::tagList()
+for(i in 1:8){ 
+plt[[i]] <- as.widget(ggplotly(ggplot(Data_HC_Result, 
+                      aes(x=as.factor(.data[[colnames(Data_HC_Result)[i]]]), fill=as.factor(Cluster), color=as.factor(Cluster))) +
+  geom_histogram(position="dodge",stat="count") ))
+}
+```
+
+```{r, echo = F}
+plt
+```
+
+### Test
+
+Using Kruskal-Wallis test as the non-parametric alternative to one-way ANOVA test, since I believe my data is not normally distributed. Also, the original data is of ordinal type.
+
+```{r}
+# pairwise.wilcox.test(Data_HC_Result[["Control"]], Data_HC_Result$Cluster, p.adjust.method = "BH")
+for(i in 1:8){ 
+  print(pairwise.wilcox.test(Data_HC_Result[[colnames(Data_HC_Result)[i]]], Data_HC_Result$Cluster, p.adjust.method = "BH"))
+}
+```
+
+## Kmeans {.tabset}
+
+### Optimal No. of Clusters
+
+```{r,cache = TRUE}
+ggplotly(fviz_nbclust(BoT, kmeans, method = "wss"))
+ggplotly(fviz_nbclust(BoT, kmeans, method = "sil"))
+fviz_nbclust(BoT, kmeans, method = "gap_stat")
+```
+
+### Kmeans clustering
+
+We can see from various figures that the best choice for total number of clusters is either 2 (wss and silhouette) or 3 (gap_stats and dendogram from HC). For this paper, we will choose 3 clusters for consistency with HC.
+
+```{r}
+k3 <- kmeans(BoT, centers = 3, nstart = 25)
+fviz_cluster(k3, data = BoT,geom = "point")
+```
+
+### Table
+
+```{r}
+table(Data$cohort_id, k3$cluster)
+```
+
+### Result
+
+We will save the result to perform test.
+
+```{r}
+Data_Kmeans_Result <- BoT %>% mutate(Cluster = k3$cluster) 
+
+(Data_Kmeans_Result_Summarized <- BoT %>%
+                    mutate(Cluster = k3$cluster) %>%
+                    group_by(Cluster) %>%
+                    summarise_all("mean"))
+```
+
+```{r,eval = FALSE}
+write.csv(Data_Kmeans_Result, "Final/Data_Kmeans_Result.csv", row.names=FALSE)
+write.csv(Data_Kmeans_Result_Summarized, "Final/Data_Kmeans_Result_Summarized.csv", row.names=FALSE)
+```
+
+### Plot
+
+Look at the histogram for each cluster
+
+```{r warning=FALSE,error=FALSE}
+plt2 <- htmltools::tagList()
+for(i in 1:8){ 
+  plt2[[i]] <- as.widget(ggplotly(ggplot(Data_Kmeans_Result, 
+                      aes(x=as.factor(.data[[colnames(Data_Kmeans_Result)[i]]]), fill=as.factor(Cluster), color=as.factor(Cluster))) +
+  geom_histogram(position="dodge",stat="count") ))
+}
+```
+
+```{r, echo = F}
+plt2
+```
+  
+### Test
+
+Using Kruskal-Wallis test as the non-parametric alternative to one-way ANOVA test, since I believe my data is not normally distributed. Also, the original data is of ordinal type.
+
+```{r}
+# pairwise.wilcox.test(Data_HC_Result[["Control"]], Data_HC_Result$Cluster, p.adjust.method = "BH")
+for(i in 1:8){ 
+  print(pairwise.wilcox.test(Data_Kmeans_Result[[colnames(Data_Kmeans_Result)[i]]], Data_Kmeans_Result$Cluster, p.adjust.method = "BH"))
+}
+```
